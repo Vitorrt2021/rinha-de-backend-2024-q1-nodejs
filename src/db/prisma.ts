@@ -8,7 +8,7 @@ class PrismaConnector {
   }
 
   public connect() {
-    if (this.prisma) {
+    if (!this.prisma) {
       this.prisma = new PrismaClient()
     }
     return this.prisma

@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - PORT=3000
-      - DATABASE_URL="postgresql://user:123nodejs@db/rinha?schema=public"
+      - DATABASE_URL=postgresql://user:123nodejs@db_rd:5432/rinha?schema=public
     hostname: api01
     ports:
       - "3001:3000"
@@ -38,16 +38,22 @@ services:
           memory: "10MB"
   db:
     image: postgres:latest
-    hostname: db
+    hostname: db_rd
     environment:
       - POSTGRES_PASSWORD=123nodejs
       - POSTGRES_USER=user
       - POSTGRES_DB=rinha
     ports:
       - "5432:5432"
+    volumes:
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c checkpoint_timeout=600 -c max_wal_size=4096
     deploy:
       resources:
         limits:
           cpus: "0.45"
           memory: "140MB"
+networks:
+  default:
+    driver: bridge
+    name: rinha-nginx-2024q1

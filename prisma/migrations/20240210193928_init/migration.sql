@@ -4,8 +4,8 @@ CREATE TYPE "transaction_type" AS ENUM ('credit', 'debit');
 -- CreateTable
 CREATE TABLE "clients" (
     "id" SERIAL NOT NULL,
-    "balance" BIGINT NOT NULL,
-    "limit" BIGINT NOT NULL,
+    "balance" DECIMAL(12,0) NOT NULL,
+    "limit" DECIMAL(12,0) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -16,7 +16,7 @@ CREATE TABLE "clients" (
 CREATE TABLE "transactions" (
     "id" SERIAL NOT NULL,
     "client_id" INTEGER NOT NULL,
-    "amount" BIGINT NOT NULL,
+    "amount" DECIMAL(12,0) NOT NULL,
     "type" "transaction_type" NOT NULL,
     "description" VARCHAR(10) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

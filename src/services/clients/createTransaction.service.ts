@@ -17,10 +17,7 @@ export class CreateTransactionService {
     const validate = this.validate(transaction)
     if (validate.isFail()) return R.fail(validate.getError())
 
-    const client = await this.clientRepository.findById(clientId)
-    if (!client) return R.fail(new NotFound('Client not found'))
-
-    const result = await this.process(client, transaction)
+    const result = await this.process(clientId, transaction)
     if (result.isFail()) return R.fail(result.getError())
 
     const { limit, balance } = result.getValue()
@@ -32,22 +29,28 @@ export class CreateTransactionService {
   }
 
   async process(
-    client: IClient,
+    clientId: number,
     transaction: ITransaction,
   ): Promise<R<IClient>> {
-    if (transaction.tipo === 'c') {
-      return this.processCredit(client, transaction)
-    }
-    return this.processDebit(client, transaction)
+    return this.clientRepository.transaction(async (trx) => {
+      const client = await this.clientRepository.findById(clientId, trx)
+      if (!client) return R.fail(new NotFound('Client not found'))
+      if (transaction.tipo === 'c') {
+        return this.processCredit(client, transaction, trx)
+      }
+      return this.processDebit(client, transaction, trx)
+    })
   }
 
   async processCredit(
     client: IClient,
     transaction: ITransaction,
+    trx,
   ): Promise<R<IClient>> {
     const result = await this.clientRepository.createCreditTransaction(
       client,
       transaction,
+      trx,
     )
     return R.ok(result)
   }
@@ -55,13 +58,15 @@ export class CreateTransactionService {
   async processDebit(
     client: IClient,
     transaction: ITransaction,
+    trx,
   ): Promise<R<IClient>> {
-    if (client.balance - BigInt(transaction.valor) < client.limit) {
+    if (Number(client.balance) - transaction.valor < Number(client.limit)) {
       return R.fail(new UnprocessableEntity('Limit exceeded'))
     }
     const result = await this.clientRepository.createDebitTransaction(
       client,
       transaction,
+      trx,
     )
     return R.ok(result)
   }

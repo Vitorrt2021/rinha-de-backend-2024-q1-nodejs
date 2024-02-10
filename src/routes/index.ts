@@ -7,4 +7,6 @@ router
   .route('/clientes/:id/transacoes')
   .post(clientsController.createTransaction)
 
+router.route('/clientes/:id/extrato').get(clientsController.getStatement)
+
 export default router

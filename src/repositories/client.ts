@@ -1,9 +1,11 @@
+import { $Enums } from '@prisma/client'
+import { Decimal } from '@prisma/client/runtime/library'
 import prisma from '@/db/prisma'
 
 export interface IClient {
   id: number
-  balance: bigint
-  limit: bigint
+  balance: Decimal
+  limit: Decimal
   created_at: Date
   updated_at: Date
 }
@@ -14,33 +16,59 @@ export interface ITransaction {
   descricao: string
 }
 
+export interface IDbTransaction {
+  id: number
+  client_id: number
+  amount: Decimal
+  type: $Enums.transaction_type
+  description: string
+  created_at: Date
+  updated_at: Date
+}
+
 export interface IClientRepository {
-  findById: (id: number) => Promise<IClient | null>
+  findById: (id: number, trx) => Promise<IClient | null>
   createCreditTransaction: (
     client: IClient,
     transaction: ITransaction,
+    trx,
   ) => Promise<IClient>
   createDebitTransaction: (
     client: IClient,
     transaction: ITransaction,
+    trx,
   ) => Promise<IClient>
   create: (client: { balance: number; limit: number }) => Promise<IClient>
+  findLast10Transactions: (
+    clientId: number,
+  ) => Promise<IClient & { transactions: IDbTransaction[] }>
+  transaction: (fn: (trx) => Promise<any>) => Promise<any>
 }
 
 export class ClientRepository implements IClientRepository {
-  async findById(id: number) {
-    const result = await prisma.connect().clients.findFirst({
+  async transaction(fn) {
+    return prisma.connect().$transaction(fn, {
+      isolationLevel: 'Serializable',
+    })
+  }
+
+  async findById(id: number, trx) {
+    const result = await trx.clients.findFirst({
       where: { id },
     })
     return result
   }
 
-  async createCreditTransaction(client: IClient, transaction: ITransaction) {
-    const result = await prisma.connect().clients.update({
+  async createCreditTransaction(
+    client: IClient,
+    transaction: ITransaction,
+    trx,
+  ) {
+    const result = await trx.clients.update({
       where: { id: client.id },
       data: {
         balance: {
-          decrement: transaction.valor,
+          increment: transaction.valor,
         },
         transactions: {
           create: {
@@ -54,8 +82,12 @@ export class ClientRepository implements IClientRepository {
     return result
   }
 
-  async createDebitTransaction(client: IClient, transaction: ITransaction) {
-    const result = await prisma.connect().clients.update({
+  async createDebitTransaction(
+    client: IClient,
+    transaction: ITransaction,
+    trx,
+  ) {
+    const result = await trx.clients.update({
       where: { id: client.id },
       data: {
         balance: {
@@ -71,6 +103,22 @@ export class ClientRepository implements IClientRepository {
       },
     })
     return result
+  }
+
+  async findLast10Transactions(
+    clientId: number,
+  ): Promise<IClient & { transactions: IDbTransaction[] }> {
+    const result = await prisma.connect().clients.findFirst({
+      where: { id: clientId },
+      include: {
+        transactions: {
+          orderBy: { id: 'desc' },
+          take: 10,
+        },
+      },
+    })
+
+    return result as IClient & { transactions: IDbTransaction[] }
   }
 
   async create(client: { balance: number; limit: number }): Promise<IClient> {
