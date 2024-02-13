@@ -27,3 +27,98 @@ CREATE TABLE "transactions" (
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+
+CREATE OR REPLACE FUNCTION process_debit(
+    p_client_id INT,
+    p_valor NUMERIC,
+    p_description TEXT
+) RETURNS JSON AS $$
+DECLARE
+    v_client_balance NUMERIC;
+    v_client_limit NUMERIC;
+BEGIN
+    -- Check if client exists
+    IF NOT EXISTS (SELECT 1 FROM clients WHERE id = p_client_id) THEN
+        RAISE EXCEPTION 'Client does not exist';
+    END IF;
+
+    -- Start a transaction block
+    BEGIN
+        -- Fetch client's balance and limit
+        SELECT balance, "limit"
+        INTO v_client_balance, v_client_limit
+        FROM clients
+        WHERE id = p_client_id
+        FOR UPDATE;
+
+        -- Check if debit exceeds limit
+        IF (v_client_balance - p_valor) < -v_client_limit THEN
+            RAISE EXCEPTION 'Limit exceeded';
+        END IF;
+
+
+        -- Update client's balance
+        UPDATE clients
+        SET balance = balance - p_valor
+        WHERE id = p_client_id;
+
+        -- Create debit transaction
+        INSERT INTO transactions (client_id, amount, type, description)
+        VALUES (p_client_id, p_valor, 'debit', p_description);
+
+        -- Commit the transaction
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Re-raise the error
+            RAISE;
+    END;
+    -- Return updated client data
+    RETURN (SELECT json_build_object(
+        'id', p_client_id,
+        'balance', balance,
+        'limit', "limit"
+    ) FROM clients WHERE id = p_client_id);
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION process_credit(
+    p_client_id INT,
+    p_valor NUMERIC,
+    p_description TEXT
+) RETURNS JSON AS $$
+DECLARE
+    v_client_balance NUMERIC;
+    v_client_limit NUMERIC;
+BEGIN
+    -- Check if client exists
+    IF NOT EXISTS (SELECT 1 FROM clients WHERE id = p_client_id) THEN
+        RAISE EXCEPTION 'Client does not exist';
+    END IF;
+
+    -- Start a transaction block
+    BEGIN
+        -- Update client's balance
+        UPDATE clients
+        SET balance = balance + p_valor
+        WHERE id = p_client_id;
+
+        -- Create debit transaction
+        INSERT INTO transactions (client_id, amount, type, description)
+        VALUES (p_client_id, p_valor, 'credit', p_description);
+
+        -- Commit the transaction
+    EXCEPTION
+        WHEN OTHERS THEN
+            -- Re-raise the error
+            RAISE;
+    END;
+    -- Return updated client data
+    RETURN (SELECT json_build_object(
+        'id', p_client_id,
+        'balance', balance,
+        'limit', "limit"
+    ) FROM clients WHERE id = p_client_id);
+END;
+$$ LANGUAGE plpgsql;

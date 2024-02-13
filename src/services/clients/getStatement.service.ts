@@ -29,8 +29,8 @@ export class GetStatementService {
 
   async execute(clientId: number): Promise<R<IStatement>> {
     const data = await this.clientRepository.findLast10Transactions(clientId)
-    if (!data) return R.fail(new NotFound('Client not found'))
-    const result = this.formatStatements(data)
+    if (data.isFail()) return R.fail(new NotFound('Client not found'))
+    const result = this.formatStatements(data.getValue())
 
     return R.ok(result)
   }
@@ -44,12 +44,15 @@ export class GetStatementService {
         data_extrato: new Date().toISOString(),
         limite: Number(data.limit),
       },
-      ultimas_transacoes: data.transactions.map((t) => ({
-        valor: Number(t.amount),
-        tipo: t.type === 'credit' ? 'c' : 'd',
-        descricao: t.description,
-        realizada_em: t.created_at.toISOString(),
-      })),
+      ultimas_transacoes: data.transactions?.map(
+        (t) =>
+          ({
+            valor: Number(t.amount),
+            tipo: t.type === 'credit' ? 'c' : 'd',
+            descricao: t.description,
+            realizada_em: t.created_at,
+          } || []),
+      ),
     }
   }
 }

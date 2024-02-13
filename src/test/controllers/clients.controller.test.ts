@@ -78,25 +78,15 @@ describe('GET /clientes/:id/extrato', () => {
       balance: 1000,
       limit: 1000,
     })
-    repository.transaction(async (trx) => {
-      await repository.createCreditTransaction(
-        client,
-        {
-          descricao: 'a',
-          tipo: 'c',
-          valor: 12,
-        },
-        trx,
-      )
-      await repository.createDebitTransaction(
-        client,
-        {
-          descricao: 'a',
-          tipo: 'd',
-          valor: 12,
-        },
-        trx,
-      )
+    await repository.createCreditTransaction(client.id, {
+      descricao: 'a',
+      tipo: 'c',
+      valor: 12,
+    })
+    await repository.createDebitTransaction(client.id, {
+      descricao: 'a',
+      tipo: 'd',
+      valor: 12,
     })
 
     const response = await application.get(`/clientes/${client.id}/extrato`)

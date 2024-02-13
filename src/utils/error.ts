@@ -25,6 +25,12 @@ export class UnprocessableEntity extends ApiError {
   }
 }
 
+export class InternalServer extends ApiError {
+  constructor(message: string) {
+    super(message, 500)
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err, _req, res, _next) {
   if (err instanceof ApiError) {

@@ -1,5 +1,5 @@
 import { IClient, IClientRepository, ITransaction } from '@/repositories/client'
-import { BadRequest, NotFound, UnprocessableEntity } from '@/utils/error'
+import { BadRequest } from '@/utils/error'
 import { R } from '@/utils/result'
 
 interface IResponse {
@@ -32,43 +32,32 @@ export class CreateTransactionService {
     clientId: number,
     transaction: ITransaction,
   ): Promise<R<IClient>> {
-    return this.clientRepository.transaction(async (trx) => {
-      const client = await this.clientRepository.findById(clientId, trx)
-      if (!client) return R.fail(new NotFound('Client not found'))
-      if (transaction.tipo === 'c') {
-        return this.processCredit(client, transaction, trx)
-      }
-      return this.processDebit(client, transaction, trx)
-    })
+    if (transaction.tipo === 'c') {
+      return this.processCredit(clientId, transaction)
+    }
+    return this.processDebit(clientId, transaction)
   }
 
   async processCredit(
-    client: IClient,
+    clientId: number,
     transaction: ITransaction,
-    trx,
   ): Promise<R<IClient>> {
     const result = await this.clientRepository.createCreditTransaction(
-      client,
+      clientId,
       transaction,
-      trx,
     )
-    return R.ok(result)
+    return result
   }
 
   async processDebit(
-    client: IClient,
+    clientId: number,
     transaction: ITransaction,
-    trx,
   ): Promise<R<IClient>> {
-    if (Number(client.balance) - transaction.valor < Number(client.limit)) {
-      return R.fail(new UnprocessableEntity('Limit exceeded'))
-    }
     const result = await this.clientRepository.createDebitTransaction(
-      client,
+      clientId,
       transaction,
-      trx,
     )
-    return R.ok(result)
+    return result
   }
 
   validate(transaction: ITransaction): R<void> {

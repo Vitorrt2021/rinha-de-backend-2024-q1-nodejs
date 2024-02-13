@@ -13,7 +13,6 @@ app.options('*', cors())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(compression())
-
 app.use('/', routes)
 
 app.use(errorHandler)
